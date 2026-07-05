@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SEO Analyzer — Website Audit Tool</title>
+<style>
+  :root{
+    --bg:#0f1420; --panel:#161d2e; --border:#232c42; --text:#e8ecf5; --muted:#8b93a7;
+    --accent:#4f7cff; --good:#3ecf8e; --warn:#f5b942; --bad:#f5545e;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);}
+  header{padding:28px 20px;text-align:center;border-bottom:1px solid var(--border);}
+  header h1{margin:0 0 6px;font-size:1.6rem;}
+  header p{margin:0;color:var(--muted);font-size:.95rem;}
+  .container{max-width:920px;margin:0 auto;padding:24px 20px 60px;}
+  .search-box{display:flex;gap:10px;background:var(--panel);border:1px solid var(--border);padding:12px;border-radius:12px;}
+  .search-box input{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-size:1rem;padding:8px;}
+  .search-box button{background:var(--accent);border:none;color:#fff;padding:10px 22px;border-radius:8px;cursor:pointer;font-weight:600;}
+  .search-box button:disabled{opacity:.5;cursor:not-allowed;}
+  #status{margin-top:14px;color:var(--muted);font-size:.9rem;}
+  .score-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin:24px 0;}
+  .score-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px;text-align:center;}
+  .score-card .num{font-size:2.2rem;font-weight:700;}
+  .score-card .label{color:var(--muted);font-size:.85rem;margin-top:4px;}
+  .good{color:var(--good);} .warn{color:var(--warn);} .bad{color:var(--bad);}
+  .section{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:16px;}
+  .section h3{margin:0 0 12px;font-size:1.05rem;}
+  .row{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px dashed var(--border);font-size:.9rem;}
+  .row:last-child{border-bottom:none;}
+  .row span:first-child{color:var(--muted);}
+  ul.notes{margin:8px 0 0;padding-left:18px;font-size:.87rem;color:var(--warn);}
+  .hidden{display:none;}
+  a{color:var(--accent);}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🔍 SEO Analyzer</h1>
+  <p>Custom-built website SEO audit tool — technical, on-page, content & performance analysis</p>
+</header>
+
+<div class="container">
+  <div class="search-box">
+    <input id="urlInput" type="text" placeholder="Enter website URL, e.g. https://example.com" />
+    <button id="analyzeBtn">Analyze</button>
+  </div>
+  <div id="status"></div>
+
+  <div id="report" class="hidden">
+    <div class="score-grid" id="scoreGrid"></div>
+
+    <div class="section">
+      <h3>📄 On-Page SEO</h3>
+      <div id="onPageSection"></div>
+    </div>
+
+    <div class="section">
+      <h3>⚙️ Technical SEO</h3>
+      <div id="technicalSection"></div>
+    </div>
+
+    <div class="section">
+      <h3>⚡ Performance</h3>
+      <div id="performanceSection"></div>
+    </div>
+
+    <div class="section">
+      <h3>✍️ Content Quality</h3>
+      <div id="contentSection"></div>
+    </div>
+
+    <div class="section">
+      <h3>🌐 Social Metadata</h3>
+      <div id="socialSection"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_BASE = ''; // same origin
+const btn = document.getElementById('analyzeBtn');
+const input = document.getElementById('urlInput');
+const status = document.getElementById('status');
+const report = document.getElementById('report');
+
+function scoreClass(n){ return n >= 80 ? 'good' : n >= 50 ? 'warn' : 'bad'; }
+
+function row(label, value){ return `<div class="row"><span>${label}</span><span>${value}</span></div>`; }
+
+function notesList(arr){
+  if(!arr || arr.length === 0) return '<p style="color:var(--good);font-size:.87rem;">✅ No issues found</p>';
+  return `<ul class="notes">${arr.map(n => `<li>${n}</li>`).join('')}</ul>`;
+}
+
+function renderReport(job){
+  const d = job.result;
+  const s = d.scores;
+
+  document.getElementById('scoreGrid').innerHTML = `
+    ${['overall','technical','onPage','content','performance'].map(k => `
+      <div class="score-card">
+        <div class="num ${scoreClass(s[k])}">${s[k]}</div>
+        <div class="label">${k === 'onPage' ? 'On-Page' : k.charAt(0).toUpperCase()+k.slice(1)}</div>
+      </div>`).join('')}
+  `;
+
+  document.getElementById('onPageSection').innerHTML = `
+    ${row('Title', d.onPage.title + ' (' + d.onPage.titleLength + ' chars)')}
+    ${row('Meta Description', (d.onPage.metaDescription || '<em>missing</em>') + ' (' + d.onPage.metaDescriptionLength + ' chars)')}
+    ${row('H1 Count', d.onPage.h1Count)}
+    ${row('Images missing ALT', d.onPage.imagesWithoutAlt + ' / ' + d.onPage.imagesTotal)}
+    ${row('Internal / External Links', d.onPage.internalLinks + ' / ' + d.onPage.externalLinks)}
+    ${row('Canonical Tag', d.onPage.canonical || 'Not set')}
+    ${row('Structured Data (JSON-LD)', d.onPage.structuredDataCount + ' block(s)')}
+    ${notesList(s.notes.onPage)}
+  `;
+
+  document.getElementById('technicalSection').innerHTML = `
+    ${row('HTTPS', d.technical.isHttps ? '✅ Yes' : '❌ No')}
+    ${row('robots.txt', d.technical.robotsTxt.exists ? '✅ Found' : '❌ Missing')}
+    ${row('sitemap.xml', d.technical.sitemapXml.exists ? '✅ Found' : '❌ Missing')}
+    ${row('Mobile Friendly (viewport tag)', d.mobileFriendly ? '✅ Yes' : '❌ No')}
+    ${row('Redirected', d.redirected ? 'Yes -> ' + d.finalUrl : 'No')}
+    ${row('HTTP Status', d.statusCode)}
+    ${notesList(s.notes.technical)}
+  `;
+
+  document.getElementById('performanceSection').innerHTML = `
+    ${row('Load Time', d.performance.loadTimeMs + ' ms')}
+    ${row('Page Size', d.performance.pageSizeKB + ' KB')}
+    ${row('Estimated Requests', d.performance.estimatedRequests)}
+    ${d.lighthouse.available ? row('Lighthouse Performance', d.lighthouse.performanceScore) : row('Lighthouse', 'Not available in this environment (fallback metrics used)')}
+    ${notesList(s.notes.performance)}
+  `;
+
+  document.getElementById('contentSection').innerHTML = `
+    ${row('Word Count', d.onPage.wordCount)}
+    ${row('Readability (Flesch)', d.readability.score + ' — ' + d.readability.label)}
+    ${row('Top Keywords', d.keywords.slice(0,5).map(k => k.word + ' (' + k.densityPercent + '%)').join(', '))}
+    ${notesList(s.notes.content)}
+  `;
+
+  document.getElementById('socialSection').innerHTML = `
+    ${row('Open Graph Tags', d.socialMeta.openGraphPresent ? '✅ Present' : '❌ Missing')}
+    ${row('Twitter Card Tags', d.socialMeta.twitterPresent ? '✅ Present' : '❌ Missing')}
+  `;
+
+  report.classList.remove('hidden');
+}
+
+async function poll(jobId){
+  const res = await fetch(`${API_BASE}/api/results/${jobId}`);
+  const job = await res.json();
+
+  if(job.status === 'completed'){
+    status.textContent = 'Analysis complete ✅';
+    renderReport(job);
+    btn.disabled = false;
+  } else if(job.status === 'failed'){
+    status.textContent = 'Analysis failed: ' + job.error;
+    btn.disabled = false;
+  } else {
+    status.textContent = `Status: ${job.status}...`;
+    setTimeout(() => poll(jobId), 1500);
+  }
+}
+
+btn.addEventListener('click', async () => {
+  const url = input.value.trim();
+  if(!url){ status.textContent = 'Please enter a URL.'; return; }
+  btn.disabled = true;
+  report.classList.add('hidden');
+  status.textContent = 'Starting analysis...';
+
+  try {
+    const res = await fetch(`${API_BASE}/api/analyze`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    const data = await res.json();
+    if(!res.ok){ status.textContent = 'Error: ' + data.error; btn.disabled = false; return; }
+    poll(data.jobId);
+  } catch (e) {
+    status.textContent = 'Request failed: ' + e.message;
+    btn.disabled = false;
+  }
+});
+
+input.addEventListener('keydown', (e) => { if(e.key === 'Enter') btn.click(); });
+</script>
+</body>
+</html>
