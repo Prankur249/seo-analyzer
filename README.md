@@ -67,7 +67,7 @@ seo-analyzer/
 ## 🚀 Running Locally
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/Prankur249/seo-analyzer.git
 cd seo-analyzer
 npm install
 npm start
