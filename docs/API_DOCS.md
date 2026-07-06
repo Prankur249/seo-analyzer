@@ -1,28 +1,32 @@
 # API Documentation
 
 Base URL (local): `http://localhost:5000`
-Base URL (deployed): `https://<your-deployed-url>`
+Base URL (deployed): `https://seo-analyzer-ax3f.onrender.com`
 
 All responses are JSON.
 
 ---
 
-## 1. `POST /api/analyze`
+# 1. POST /api/analyze
 
 Starts an asynchronous SEO analysis for a given URL.
 
-### Request
+## Request
 
-```
+```http
 POST /api/analyze
 Content-Type: application/json
+```
 
+### Request Body
+
+```json
 {
   "url": "https://example.com"
 }
 ```
 
-### Response — 202 Accepted
+### Success Response (202 Accepted)
 
 ```json
 {
@@ -32,25 +36,33 @@ Content-Type: application/json
 }
 ```
 
-### Error — 400 Bad Request
+### Error Response (400 Bad Request)
 
 ```json
-{ "error": "Invalid URL. Include the protocol, e.g. https://example.com" }
+{
+  "error": "Invalid URL. Include the protocol, e.g. https://example.com"
+}
 ```
 
 ---
 
-## 2. `GET /api/results/:id`
+# 2. GET /api/results/:id
 
-Fetches the current status and (once ready) the full SEO report for a job.
+Returns the current status or completed SEO report.
 
-### Request
+## Request
 
+```http
+GET /api/results/{jobId}
 ```
+
+Example:
+
+```http
 GET /api/results/b6f1a2e4-3c2a-4b8b-9b7e-1234567890ab
 ```
 
-### Response — while processing
+### Processing Response
 
 ```json
 {
@@ -64,9 +76,16 @@ GET /api/results/b6f1a2e4-3c2a-4b8b-9b7e-1234567890ab
 }
 ```
 
-`status` will be one of: `queued`, `processing`, `completed`, `failed`.
+Possible status values:
 
-### Response — completed (abridged)
+- queued
+- processing
+- completed
+- failed
+
+---
+
+### Completed Response
 
 ```json
 {
@@ -77,12 +96,12 @@ GET /api/results/b6f1a2e4-3c2a-4b8b-9b7e-1234567890ab
     "finalUrl": "https://example.com/",
     "statusCode": 200,
     "redirected": false,
+
     "onPage": {
       "title": "Example Domain",
       "titleLength": 14,
       "metaDescription": "",
       "metaDescriptionLength": 0,
-      "headings": { "h1": ["Example Domain"], "h2": [], "h3": [], "h4": [], "h5": [], "h6": [] },
       "h1Count": 1,
       "imagesTotal": 0,
       "imagesWithoutAlt": 0,
@@ -93,45 +112,60 @@ GET /api/results/b6f1a2e4-3c2a-4b8b-9b7e-1234567890ab
       "structuredDataCount": 0,
       "wordCount": 28
     },
-    "readability": { "score": 62, "label": "Fairly Easy" },
-    "keywords": [{ "word": "example", "count": 2, "densityPercent": 8.33 }],
+
     "technical": {
       "isHttps": true,
-      "robotsTxt": { "exists": false, "url": "https://example.com/robots.txt" },
-      "sitemapXml": { "exists": false, "url": "https://example.com/sitemap.xml" }
+      "robotsTxt": true,
+      "sitemapXml": true
     },
-    "performance": { "loadTimeMs": 220, "pageSizeKB": 1.3, "estimatedRequests": 1 },
-    "lighthouse": { "available": false, "reason": "Lighthouse/Puppeteer unavailable..." },
-    "mobileFriendly": false,
-    "socialMeta": { "openGraphPresent": false, "twitterPresent": false },
+
+    "performance": {
+      "loadTimeMs": 220,
+      "pageSizeKB": 1.3,
+      "estimatedRequests": 1
+    },
+
+    "content": {
+      "readability": 62,
+      "keywordDensity": [
+        {
+          "word": "example",
+          "count": 2
+        }
+      ]
+    },
+
+    "social": {
+      "openGraph": false,
+      "twitterCard": false
+    },
+
     "scores": {
       "technical": 55,
       "onPage": 71,
       "content": 50,
       "performance": 100,
-      "overall": 66,
-      "notes": {
-        "technical": ["robots.txt not found (-15)", "sitemap.xml not found (-15)"],
-        "onPage": ["Meta description length is 0 chars (ideal: 50-160)"],
-        "content": ["Page has only 28 words (ideal: 300+)"],
-        "performance": []
-      }
+      "overall": 66
     }
   }
 }
 ```
 
-### Error — 404 Not Found
+### Error Response (404)
 
 ```json
-{ "error": "Job not found. Check the jobId." }
+{
+  "error": "Job not found."
+}
 ```
 
 ---
 
-## Notes
+# Notes
 
-- The API is **stateless per job** — poll `/api/results/:id` every 1–2 seconds until
-  `status` is `completed` or `failed`.
-- No authentication is required for this assignment build. Add an API key middleware
-  before any public production deployment.
+- The API works asynchronously.
+- Call `POST /api/analyze` first.
+- Save the returned `jobId`.
+- Poll `GET /api/results/:id` until the status becomes `completed`.
+- All responses are JSON.
+- No authentication is required for this assignment version.
